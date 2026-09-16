@@ -57,7 +57,9 @@ public class Interface extends JFrame {
     private final JLabel barraStatus = new JLabel();
     private final JSplitPane divisao = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
 
-    /** Arquivo aberto/salvo no momento. Nulo enquanto o arquivo for novo. */
+    /**
+     * Arquivo aberto/salvo no momento. Nulo enquanto o arquivo for novo.
+     */
     private File arquivo;
 
     public Interface() {
@@ -107,7 +109,7 @@ public class Interface extends JFrame {
         criarBotao("recortar [ctrl-x]", "Recortar.png",
                 KeyStroke.getKeyStroke(KeyEvent.VK_X, InputEvent.CTRL_DOWN_MASK), evt -> editor.cut());
         criarBotao("compilar [F7]", "Compilar.png",
-                KeyStroke.getKeyStroke(KeyEvent.VK_F7, 0), evt -> mensagens.setText(MENSAGEM_COMPILAR));
+                KeyStroke.getKeyStroke(KeyEvent.VK_F7, 0), evt -> executarCompilacao());
         criarBotao("equipe [F1]", "Equipe.png",
                 KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0), evt -> mensagens.setText(MENSAGEM_EQUIPE));
     }
@@ -150,6 +152,8 @@ public class Interface extends JFrame {
     private void montarBarraStatus() {
         barraStatus.setPreferredSize(new Dimension(0, 25));
         barraStatus.setBorder(BorderFactory.createEmptyBorder(0, 5, 0, 5));
+
+        mensagens.setFont(new java.awt.Font(java.awt.Font.MONOSPACED, java.awt.Font.PLAIN, 12));
     }
 
     // ------------------------------------------------------------------ ações dos botões
@@ -219,81 +223,237 @@ public class Interface extends JFrame {
     public static void main(String args[]) {
         java.awt.EventQueue.invokeLater(() -> new Interface().setVisible(true));
     }
-}
 
-/**
- * Numeração das linhas do editor, apresentada à esquerda e iniciando em 1.
- * Por ser um componente à parte do editor, seu conteúdo não pode ser alterado.
- */
-class NumeroDeLinhas extends JComponent {
+    //Realiza afunilação das saídas, ou seja, independente do identificador, palavra reservada ou símbolo especial, retorna apenas sua classe, e não seu tipo exato.
+    private String getClassePorExtenso(int idToken) {
+        switch (idToken) {
+            case Constants.t_cd_int:
+            case Constants.t_cd_float:
+            case Constants.t_cd_string:
+            case Constants.t_cd_bool:
+                return "identificador";
 
-    private static final long serialVersionUID = 1L;
+            case Constants.t_cte_int:
+                return "constante_int";
+            case Constants.t_cte_float:
+                return "constante_float";
+            case Constants.t_cte_string:
+                return "constante_string";
 
-    private final JTextArea editor;
+            case Constants.t_and:
+            case Constants.t_false:
+            case Constants.t_if:
+            case Constants.t_in:
+            case Constants.t_isfalsedo:
+            case Constants.t_istruedo:
+            case Constants.t_module:
+            case Constants.t_not:
+            case Constants.t_or:
+            case Constants.t_out:
+            case Constants.t_true:
+            case Constants.t_while:
+                return "palavra reservada";
 
-    NumeroDeLinhas(JTextArea editor) {
-        this.editor = editor;
-        setFont(editor.getFont());
-        setBackground(new Color(240, 240, 240));
-        setOpaque(true);
-
-        editor.getDocument().addDocumentListener(new DocumentListener() {
-            @Override
-            public void insertUpdate(DocumentEvent evt) {
-                atualizar();
-            }
-
-            @Override
-            public void removeUpdate(DocumentEvent evt) {
-                atualizar();
-            }
-
-            @Override
-            public void changedUpdate(DocumentEvent evt) {
-                atualizar();
-            }
-        });
-        editor.addComponentListener(new ComponentAdapter() {
-            @Override
-            public void componentResized(ComponentEvent evt) {
-                atualizar();
-            }
-        });
+            case Constants.t_TOKEN_22:
+            case Constants.t_TOKEN_23:
+            case Constants.t_TOKEN_24:
+            case Constants.t_TOKEN_25:
+            case Constants.t_TOKEN_26:
+            case Constants.t_TOKEN_27:
+            case Constants.t_TOKEN_28:
+            case Constants.t_TOKEN_29:
+            case Constants.t_TOKEN_30:
+            case Constants.t_TOKEN_31:
+            case Constants.t_TOKEN_32:
+            case Constants.t_TOKEN_33:
+            case Constants.t_TOKEN_34:
+            case Constants.t_TOKEN_35:
+            case Constants.t_TOKEN_36:
+            case Constants.t_TOKEN_37:
+            case Constants.t_TOKEN_38:
+            case Constants.t_TOKEN_39:
+                return "símbolo especial";
+        }
+        return "";
     }
 
-    private void atualizar() {
-        revalidate();
-        repaint();
+
+    private int getLinha(String texto, int posicao) {
+        int linha = 1;
+        for (int i = 0; i < posicao && i < texto.length(); i++) {
+            if (texto.charAt(i) == '\n') {
+                linha++;
+            }
+        }
+        return linha;
     }
 
-    /** Quantidade de linhas numeradas: preenche toda a altura visível do editor. */
-    private int quantidadeDeLinhas(FontMetrics metrica) {
-        return Math.max(1, editor.getHeight() / metrica.getHeight());
+    private String extrairPalavra(String codigo, int pos) {
+        int fim = pos;
+        while (fim < codigo.length() && (Character.isLetterOrDigit(codigo.charAt(fim)) || codigo.charAt(fim) == '_')) {
+            fim++;
+        }
+        return codigo.substring(pos, fim);
     }
 
-    @Override
-    public Dimension getPreferredSize() {
-        FontMetrics metrica = getFontMetrics(getFont());
-        int largura = metrica.stringWidth(String.valueOf(quantidadeDeLinhas(metrica))) + 10;
-        return new Dimension(largura, editor.getHeight());
+    private void executarCompilacao() {
+        mensagens.setText("");
+
+        String codigoFonte = editor.getText();
+        Lexico lexico = new Lexico();
+        lexico.setInput(codigoFonte);
+
+        try {
+
+            //Formatação de texto conforme a saída
+            Token token = null;
+            StringBuilder saida = new StringBuilder();
+
+            saida.append(String.format("%-10s %-25s %s\n", "linha", "classe", "lexema"));
+
+            while ((token = lexico.nextToken()) != null) {
+                int linha = getLinha(codigoFonte, token.getPosition());
+                int pos = token.getPosition();
+
+                String restante = codigoFonte.substring(pos);
+
+                if (restante.startsWith("i_") || restante.startsWith("f_") || restante.startsWith("s_") || restante.startsWith("b_")) {
+                    if (token.getId() != Constants.t_cd_int && token.getId() != Constants.t_cd_float && token.getId() != Constants.t_cd_string && token.getId() != Constants.t_cd_bool) {
+                        mensagens.setText("linha " + linha + ": identificador inválido\n");
+                        return;
+                    }
+                }
+
+                if (token.getId() == Constants.t_palavra) {
+                    String palavraInvalida = extrairPalavra(codigoFonte, pos);
+                    mensagens.setText("linha " + linha + ": " + palavraInvalida + " palavra reservada inválida\n");
+                    return;
+                }
+
+                String classe = getClassePorExtenso(token.getId());
+                String lexema = token.getLexeme();
+
+                saida.append(String.format("%-10d %-25s %s\n", linha, classe, lexema));
+            }
+
+            saida.append("\n");
+            saida.append("programa compilado com sucesso\n");
+            mensagens.setText(saida.toString());
+
+        } catch (LexicalError e) {
+
+            //Tratativas de erros apontados pelo GALS
+
+            int linhaErro = getLinha(codigoFonte, e.getPosition());
+            String msgErro = e.getMessage();
+            int pos = e.getPosition();
+
+            String restante = (pos < codigoFonte.length()) ? codigoFonte.substring(pos) : "";
+
+            if (restante.startsWith("i_") || restante.startsWith("f_") || restante.startsWith("s_") || restante.startsWith("b_")) {
+                mensagens.setText("linha " + linhaErro + ": identificador inválido\n");
+            }
+
+            else if (msgErro != null && (msgErro.contains("comentário") || msgErro.contains("ignorar") || msgErro.contains("<ignorar>"))) {
+                mensagens.setText("linha " + linhaErro + ": comentário inválido ou não finalizado\n");
+            }
+
+            else if (restante.startsWith("\"") || (msgErro != null && msgErro.contains("constante_string"))) {
+                mensagens.setText("linha " + linhaErro + ": constante_string inválida\n");
+            }
+
+            else if (msgErro != null && msgErro.contains("identificador")) {
+                mensagens.setText("linha " + linhaErro + ": identificador inválido\n");
+            }
+
+            else if (restante.length() > 0 && Character.isLetter(restante.charAt(0))) {
+                String palavraInvalida = extrairPalavra(codigoFonte, pos);
+                mensagens.setText("linha " + linhaErro + ": " + palavraInvalida + " palavra reservada inválida\n");
+            }
+
+            else {
+                char simbolo = (pos < codigoFonte.length()) ? codigoFonte.charAt(pos) : ' ';
+                mensagens.setText("linha " + linhaErro + ": " + simbolo + " símbolo inválido\n");
+            }
+        }
     }
 
-    @Override
-    protected void paintComponent(Graphics g) {
-        g.setColor(getBackground());
-        g.fillRect(0, 0, getWidth(), getHeight());
+    /**
+     * Numeração das linhas do editor, apresentada à esquerda e iniciando em 1.
+     * Por ser um componente à parte do editor, seu conteúdo não pode ser alterado.
+     */
+    class NumeroDeLinhas extends JComponent {
 
-        g.setFont(getFont());
-        g.setColor(Color.GRAY);
+        private static final long serialVersionUID = 1L;
 
-        FontMetrics metrica = g.getFontMetrics();
-        int alturaLinha = metrica.getHeight();
-        int topo = editor.getInsets().top;
-        int linhas = quantidadeDeLinhas(metrica);
-        for (int i = 0; i < linhas; i++) {
-            String numero = String.valueOf(i + 1);
-            g.drawString(numero, getWidth() - metrica.stringWidth(numero) - 4,
-                    topo + metrica.getAscent() + i * alturaLinha);
+        private final JTextArea editor;
+
+        NumeroDeLinhas(JTextArea editor) {
+            this.editor = editor;
+            setFont(editor.getFont());
+            setBackground(new Color(240, 240, 240));
+            setOpaque(true);
+
+            editor.getDocument().addDocumentListener(new DocumentListener() {
+                @Override
+                public void insertUpdate(DocumentEvent evt) {
+                    atualizar();
+                }
+
+                @Override
+                public void removeUpdate(DocumentEvent evt) {
+                    atualizar();
+                }
+
+                @Override
+                public void changedUpdate(DocumentEvent evt) {
+                    atualizar();
+                }
+            });
+            editor.addComponentListener(new ComponentAdapter() {
+                @Override
+                public void componentResized(ComponentEvent evt) {
+                    atualizar();
+                }
+            });
+        }
+
+        private void atualizar() {
+            revalidate();
+            repaint();
+        }
+
+        /**
+         * Quantidade de linhas numeradas: preenche toda a altura visível do editor.
+         */
+        private int quantidadeDeLinhas(FontMetrics metrica) {
+            return Math.max(1, editor.getHeight() / metrica.getHeight());
+        }
+
+        @Override
+        public Dimension getPreferredSize() {
+            FontMetrics metrica = getFontMetrics(getFont());
+            int largura = metrica.stringWidth(String.valueOf(quantidadeDeLinhas(metrica))) + 10;
+            return new Dimension(largura, editor.getHeight());
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            g.setColor(getBackground());
+            g.fillRect(0, 0, getWidth(), getHeight());
+
+            g.setFont(getFont());
+            g.setColor(Color.GRAY);
+
+            FontMetrics metrica = g.getFontMetrics();
+            int alturaLinha = metrica.getHeight();
+            int topo = editor.getInsets().top;
+            int linhas = quantidadeDeLinhas(metrica);
+            for (int i = 0; i < linhas; i++) {
+                String numero = String.valueOf(i + 1);
+                g.drawString(numero, getWidth() - metrica.stringWidth(numero) - 4,
+                        topo + metrica.getAscent() + i * alturaLinha);
+            }
         }
     }
 }
