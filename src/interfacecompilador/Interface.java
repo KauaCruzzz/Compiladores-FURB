@@ -224,60 +224,6 @@ public class Interface extends JFrame {
         java.awt.EventQueue.invokeLater(() -> new Interface().setVisible(true));
     }
 
-    //Realiza afunilação das saídas, ou seja, independente do identificador, palavra reservada ou símbolo especial, retorna apenas sua classe, e não seu tipo exato.
-    private String getClassePorExtenso(int idToken) {
-        switch (idToken) {
-            case Constants.t_cd_int:
-            case Constants.t_cd_float:
-            case Constants.t_cd_string:
-            case Constants.t_cd_bool:
-                return "identificador";
-
-            case Constants.t_cte_int:
-                return "constante_int";
-            case Constants.t_cte_float:
-                return "constante_float";
-            case Constants.t_cte_string:
-                return "constante_string";
-
-            case Constants.t_and:
-            case Constants.t_false:
-            case Constants.t_if:
-            case Constants.t_in:
-            case Constants.t_isfalsedo:
-            case Constants.t_istruedo:
-            case Constants.t_module:
-            case Constants.t_not:
-            case Constants.t_or:
-            case Constants.t_out:
-            case Constants.t_true:
-            case Constants.t_while:
-                return "palavra reservada";
-
-            case Constants.t_TOKEN_22:
-            case Constants.t_TOKEN_23:
-            case Constants.t_TOKEN_24:
-            case Constants.t_TOKEN_25:
-            case Constants.t_TOKEN_26:
-            case Constants.t_TOKEN_27:
-            case Constants.t_TOKEN_28:
-            case Constants.t_TOKEN_29:
-            case Constants.t_TOKEN_30:
-            case Constants.t_TOKEN_31:
-            case Constants.t_TOKEN_32:
-            case Constants.t_TOKEN_33:
-            case Constants.t_TOKEN_34:
-            case Constants.t_TOKEN_35:
-            case Constants.t_TOKEN_36:
-            case Constants.t_TOKEN_37:
-            case Constants.t_TOKEN_38:
-            case Constants.t_TOKEN_39:
-                return "símbolo especial";
-        }
-        return "";
-    }
-
-
     private int getLinha(String texto, int posicao) {
         int linha = 1;
         for (int i = 0; i < posicao && i < texto.length(); i++) {
@@ -288,12 +234,28 @@ public class Interface extends JFrame {
         return linha;
     }
 
-    private String extrairPalavra(String codigo, int pos) {
-        int fim = pos;
-        while (fim < codigo.length() && (Character.isLetterOrDigit(codigo.charAt(fim)) || codigo.charAt(fim) == '_')) {
-            fim++;
+    private String getLexemaEncontrado(String codigo, int pos) {
+        if (pos >= codigo.length()) {
+            return "EOF";
         }
-        return codigo.substring(pos, fim);
+
+        Lexico lexicoTemp = new Lexico();
+        lexicoTemp.setInput(codigo);
+
+        try {
+            Token t = null;
+            while ((t = lexicoTemp.nextToken()) != null) {
+                if (t.getPosition() == pos) {
+                    if (t.getId() == Constants.t_cte_string) {
+                        return "constante_string";
+                    }
+                    return t.getLexeme();
+                }
+            }
+        } catch (LexicalError e) {
+
+        }
+        return "EOF";
     }
 
     private void executarCompilacao() {
@@ -301,80 +263,28 @@ public class Interface extends JFrame {
 
         String codigoFonte = editor.getText();
         Lexico lexico = new Lexico();
+        Sintatico sintatico = new Sintatico();
+        Semantico semantico = new Semantico();
         lexico.setInput(codigoFonte);
 
         try {
-
-            //Formatação de texto conforme a saída
-            Token token = null;
-            StringBuilder saida = new StringBuilder();
-
-            saida.append(String.format("%-10s %-25s %s\n", "linha", "classe", "lexema"));
-
-            while ((token = lexico.nextToken()) != null) {
-                int linha = getLinha(codigoFonte, token.getPosition());
-                int pos = token.getPosition();
-
-                String restante = codigoFonte.substring(pos);
-
-                if (restante.startsWith("i_") || restante.startsWith("f_") || restante.startsWith("s_") || restante.startsWith("b_")) {
-                    if (token.getId() != Constants.t_cd_int && token.getId() != Constants.t_cd_float && token.getId() != Constants.t_cd_string && token.getId() != Constants.t_cd_bool) {
-                        mensagens.setText("linha " + linha + ": identificador inválido\n");
-                        return;
-                    }
-                }
-
-                if (token.getId() == Constants.t_palavra) {
-                    String palavraInvalida = extrairPalavra(codigoFonte, pos);
-                    mensagens.setText("linha " + linha + ": " + palavraInvalida + " palavra reservada inválida\n");
-                    return;
-                }
-
-                String classe = getClassePorExtenso(token.getId());
-                String lexema = token.getLexeme();
-
-                saida.append(String.format("%-10d %-25s %s\n", linha, classe, lexema));
-            }
-
-            saida.append("\n");
-            saida.append("programa compilado com sucesso\n");
-            mensagens.setText(saida.toString());
+            sintatico.parse(lexico, semantico);
+            mensagens.setText("programa compilado com sucesso\n");
 
         } catch (LexicalError e) {
-
-            //Tratativas de erros apontados pelo GALS
-
             int linhaErro = getLinha(codigoFonte, e.getPosition());
-            String msgErro = e.getMessage();
-            int pos = e.getPosition();
+            mensagens.setText("linha " + linhaErro + ": erro léxico\n");
 
-            String restante = (pos < codigoFonte.length()) ? codigoFonte.substring(pos) : "";
+        } catch (SyntaticError e) {
+            int linhaErro = getLinha(codigoFonte, e.getPosition());
 
-            if (restante.startsWith("i_") || restante.startsWith("f_") || restante.startsWith("s_") || restante.startsWith("b_")) {
-                mensagens.setText("linha " + linhaErro + ": identificador inválido\n");
-            }
+            String encontrado = getLexemaEncontrado(codigoFonte, e.getPosition());
+            String esperado = e.getMessage();
 
-            else if (msgErro != null && (msgErro.contains("comentário") || msgErro.contains("ignorar") || msgErro.contains("<ignorar>"))) {
-                mensagens.setText("linha " + linhaErro + ": comentário inválido ou não finalizado\n");
-            }
+            mensagens.setText("linha " + linhaErro + ": encontrado " + encontrado + " " + esperado + "\n");
+        }
+        catch (SemanticError e) {
 
-            else if (restante.startsWith("\"") || (msgErro != null && msgErro.contains("constante_string"))) {
-                mensagens.setText("linha " + linhaErro + ": constante_string inválida\n");
-            }
-
-            else if (msgErro != null && msgErro.contains("identificador")) {
-                mensagens.setText("linha " + linhaErro + ": identificador inválido\n");
-            }
-
-            else if (restante.length() > 0 && Character.isLetter(restante.charAt(0))) {
-                String palavraInvalida = extrairPalavra(codigoFonte, pos);
-                mensagens.setText("linha " + linhaErro + ": " + palavraInvalida + " palavra reservada inválida\n");
-            }
-
-            else {
-                char simbolo = (pos < codigoFonte.length()) ? codigoFonte.charAt(pos) : ' ';
-                mensagens.setText("linha " + linhaErro + ": " + simbolo + " símbolo inválido\n");
-            }
         }
     }
 
