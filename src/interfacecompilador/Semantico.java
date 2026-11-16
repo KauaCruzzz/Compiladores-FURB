@@ -15,6 +15,7 @@ public class Semantico implements Constants {
          case 101: acao101(); break;
          case 102: acao102(); break;
          case 109: acao109(); break;
+         case 116: acao116(); break;
          case 118: acao118(); break;
          case 120: acao120(); break;
          case 123: acao123(); break;
@@ -52,6 +53,19 @@ public class Semantico implements Constants {
       }
       codigoObjeto.append("call void [mscorlib]System.Console::Write(" + tipo + ")\n");
     }
+
+//continuar aqui, gerar erro de exceção e um false
+
+   private void acao116() {
+      String tipo1 = pilhaTipos.pop();
+      String tipo2 = pilhaTipos.pop();
+      if ("bool".equals(tipo1) && "bool".equals(tipo2)) {
+         pilhaTipos.push("bool");
+         codigoObjeto.append("and\n");
+      } else {
+         codigoObjeto.append("call void [mscorlib]System.Console::Write(tipos incompatíveis em operador lógico and)\n");
+      }  
+   }
 
    private void acao118() {
       pilhaTipos.push("bool");
