@@ -1,0 +1,175 @@
+#Options
+GenerateScanner = true
+GenerateParser = true
+Language = Java
+ScannerName = Lexico
+ParserName = Sintatico
+SemanticName = Semantico
+ScannerCaseSensitive = true
+ScannerTable = Compact
+Input = String
+Parser = LL
+#RegularDefinitions
+char: [A-Z]|[a-z]
+
+bloco: "__?"[^"_""?"]*"?__"
+#Tokens
+palavra:! [a-z]+ ([A-Z]? [a-z]+)*
+cd_int:! "i_"{char}({char}|[0-9])*
+cd_float:! "f_"{char}({char}|[0-9])*
+cd_string:! "s_"{char}({char}|[0-9])*
+cd_bool:! "b_"{char}({char}|[0-9])*
+cte_int:! [0-9]+
+cte_float:! [0-9]+ "," [0-9]+
+cte_string:! \"[^\n \" "\"]*\"
+
+and = palavra: "and"
+false = palavra: "false"
+if = palavra: "if"
+in = palavra: "in"
+isfalsedo = palavra: "isFalseDo"
+istruedo = palavra: "isTrueDo"
+module = palavra: "module"
+not = palavra: "not"
+or = palavra: "or"
+out = palavra: "out"
+true = palavra: "true"
+while = palavra: "while"
+
+","  
+"["
+"]"  
+"("  
+")"  
+"{"    
+"}" 
+"+"
+"-"
+"*"
+"/"
+"<-"
+"="  
+"<>"  
+"<"  
+">"
+
+:[\n\s\t] 
+
+:!{bloco}
+#NonTerminals
+<forma_prog>
+<dec_var>
+<ls_cmd>
+<comando>
+<ls_var>
+<identificador>
+<opcional_id>
+<opcional_vetor>
+<tipo_id>
+<expressao>
+<cmd_atribuicao>
+<opcional_exp>
+<cmd_entrada>
+<ls_id>
+<ls_exp>
+<cmd_saida>
+<repeticao_exp>
+<cmd_selec>
+<isfalsedo>
+<istruedo>
+<cmd_while>
+<repeticao_id>
+
+
+<termo_logico>
+<expressao_>
+<relacional>
+<relacional_>
+<operador_relacional>
+<aritmetica>
+<aritmetica_>
+<termo_aritmetico>
+<termo_aritmetico_>
+<fator>
+<identificador_expressao>
+<vetor>
+
+<opcional_cmd>
+<opcional_selec>
+<opcional_while>
+#Grammar
+<forma_prog> ::= module #101 <dec_var> "{" <ls_cmd> "}" #102 ;
+
+//<ls_cmd> ::= <comando> | <comando> <ls_cmd> ;
+<ls_cmd> ::= <comando> <opcional_cmd> ;
+<opcional_cmd> ::= î | <ls_cmd> ;
+
+<comando> ::= <cmd_atribuicao> | <cmd_entrada> | <cmd_saida> | <cmd_selec> | <cmd_while>;
+
+<dec_var> ::= <ls_var> ;
+
+<ls_var> ::= <identificador> #103 <opcional_id> | î ;
+
+<opcional_id> ::= "," <identificador> #103 <opcional_id> | î ; 
+
+<identificador> ::= <tipo_id> <opcional_vetor> ;
+
+<tipo_id> ::= cd_int | cd_float | cd_string | cd_bool ;
+
+<opcional_vetor> ::= "[" cte_int  #105 "]" | #104 î ;
+
+<cmd_atribuicao> ::= <tipo_id> #103 <opcional_exp> "<-" <expressao> #106 ;
+
+<opcional_exp> ::= #107 "[" <expressao> "]" #134 | î ;
+
+<cmd_entrada> ::= in "(" <ls_id> ")" ;
+
+<ls_id> ::= <tipo_id> #103 <opcional_exp> #108 <repeticao_id> ;
+
+<repeticao_id> ::=  "," <tipo_id> #103 <opcional_exp> #108 <repeticao_id> | î ;
+
+<cmd_saida> ::= out "(" <ls_exp> ")" ;
+
+<ls_exp> ::= <expressao> #109 <repeticao_exp>;
+
+<repeticao_exp> ::= "," <expressao> #109 <repeticao_exp> | î ;
+
+//<cmd_selec> ::= if "(" <expressao> ")" istruedo "{" <ls_cmd> "}" <isfalsedo> | if "(" <expressao> ")" isfalsedo "{" <ls_cmd> "}" <istruedo> ;
+<cmd_selec> ::= if "(" <expressao> ")" <opcional_selec>;
+<opcional_selec> ::=  istruedo #110 "{" <ls_cmd> "}" <isfalsedo> #111 | isfalsedo #110 "{" <ls_cmd> "}" <istruedo> #111 ;
+
+<isfalsedo> ::= isfalsedo #112 "{" <ls_cmd> "}" | î ;  
+
+<istruedo> ::= istruedo #112 "{" <ls_cmd> "}" | î ; 
+
+//<cmd_while> ::= while "(" <expressao> ")" istruedo "{" <ls_cmd> "}" | while "(" <expressao> ")" isfalsedo "{" <ls_cmd> "}" ;
+<cmd_while> ::= #113 while "(" <expressao> ")" <opcional_while> ;
+<opcional_while> ::= istruedo #114 "{" <ls_cmd> "}" #115 | isfalsedo #114 "{" <ls_cmd> "}" #115 ;
+
+
+
+<expressao> ::= <termo_logico> <expressao_> ;
+
+<expressao_> ::= î | and <termo_logico> #116 <expressao_> | or <termo_logico> #117 <expressao_> ;
+
+<termo_logico> ::= <relacional> | true #118 | false #119 | not <termo_logico> #120 ;
+
+<relacional> ::= <aritmetica> <relacional_> ;
+
+<relacional_> ::= î | <operador_relacional> #121 <aritmetica> #122 ;
+
+<operador_relacional>::= "=" | "<>" | "<" | ">" ;
+
+<aritmetica> ::= <termo_aritmetico> <aritmetica_> ;
+
+<aritmetica_> ::= î | "+" <termo_aritmetico> #123 <aritmetica_> | "-" <termo_aritmetico> #124 <aritmetica_> ;
+
+<termo_aritmetico> ::= <fator> <termo_aritmetico_> ;
+
+<termo_aritmetico_> ::= î | "*" <fator> #125 <termo_aritmetico_> | "/" <fator> #126 <termo_aritmetico_> ;
+
+<fator> ::= <identificador_expressao> #127 <vetor> | cte_int #128 | cte_float #129| cte_string #130 | "(" <expressao> ")" | "+" <fator> #131 | "-" <fator> #132 ;
+
+<identificador_expressao>::= cd_int | cd_float | cd_string | cd_bool;
+
+<vetor> ::= î | "[" <expressao> "]" #133 ;
