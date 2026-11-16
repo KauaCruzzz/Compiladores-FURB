@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" build-on-make="true" name="Compiladores-FURB:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/Compiladores_FURB_jar</output-path>
+    <root id="archive" name="Compiladores-FURB.jar">
+      <element id="module-output" name="Compiladores-FURB" />
+    </root>
+  </artifact>
+</component>
