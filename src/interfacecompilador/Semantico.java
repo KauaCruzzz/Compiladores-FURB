@@ -6,9 +6,68 @@ import java.util.Stack;
 
 public class Semantico implements Constants {
     
-   //registros semanticos
-   private StringBuilder  codigoObjeto = new StringBuilder();
-   private Stack<String>  pilhaTipos = new Stack<>();
+    private StringBuilder codigoObjeto = new StringBuilder();
+
+    // Armazena os tipos das expressões durante sua avaliação.
+    private Stack<String> pilhaTipos = new Stack<>();
+
+    // Pilha destinada ao armazenamento de rótulos utilizados
+    // no controle do fluxo de execução.
+    private Stack<String> pilhaRotulos = new Stack<>();
+
+    // Pilhas que armazenam os contextos das estruturas
+    // condicionais (if) e de repetição (while).
+    private Stack<SelecaoContexto> pilhaSelecoes = new Stack<>();
+    private Stack<RepeticaoContexto> pilhaRepeticoes = new Stack<>();
+
+    // Contador utilizado para gerar rótulos únicos no código IL.
+    private int contadorRotulos = 0;
+
+    // contexto das estruturas de condição (IF)
+
+    // Armazena os rótulos necessários para controlar a execução
+    // de uma estrutura condicional, incluindo possíveis alternativas.
+    private static class SelecaoContexto {
+
+        // Rótulo para o bloco alternativo (isFalseDo ou isTrueDo).
+        String rotuloAlternativo;
+
+        // Rótulo que indica o final da estrutura condicional.
+        String rotuloFim;
+
+        // Indica se a estrutura possui um bloco alternativo.
+        boolean possuiAlternativa;
+
+        SelecaoContexto(String rotuloAlternativo, String rotuloFim) {
+            this.rotuloAlternativo = rotuloAlternativo;
+            this.rotuloFim = rotuloFim;
+            this.possuiAlternativa = false;
+        }
+    }
+
+    // contexto das estruturas de repetição (WHILE)
+
+    // Armazena os rótulos necessários para controlar o início e o
+    //término de uma estrutura de repetição.
+    private static class RepeticaoContexto {
+
+        // Rótulo para o início do laço.
+        String rotuloInicio;
+
+        // Rótulo para a saída do laço.
+        String rotuloFim;
+
+        RepeticaoContexto(String rotuloInicio, String rotuloFim) {
+            this.rotuloInicio = rotuloInicio;
+            this.rotuloFim = rotuloFim;
+        }
+    }
+   
+   //Geração de rótulos do código IL
+   // Cria rótulos únicos para desvios condicionais e repetições.
+    private String novoRotulo() {
+        return "IL_" + (contadorRotulos++);
+    }
 
    //variáveis criadas de acordo com o pdf esquema
    private String operadorRelacional = "";
@@ -26,6 +85,12 @@ public class Semantico implements Constants {
          case 106: acao106(); break;
          case 108: acao108(); break;
          case 109: acao109(); break;
+         case 110: acao110(token); break;
+         case 111: acao111(); break;
+         case 112: acao112(); break;
+         case 113: acao113(); break;
+         case 114: acao114(token); break;
+         case 115: acao115(); break;
          case 116: acao116(token); break;
          case 117: acao117(); break;
          case 118: acao118(); break;
@@ -71,13 +136,13 @@ public class Semantico implements Constants {
       tabelaSimbolos.put(identificador, 0);
 
       String tipo = "";
-      if (identificador.startsWith("i_")) {
+      if (identificador.startsWith("cd_i")) {
          tipo = "int64";
-      } else if (identificador.startsWith("f_")) {
+      } else if (identificador.startsWith("cd_f")) {
          tipo = "float64";
-      } else if (identificador.startsWith("s_")) {
+      } else if (identificador.startsWith("cd_s")) {
          tipo = "string";
-      } else if (identificador.startsWith("b_")) {
+      } else if (identificador.startsWith("cd_")) {
          tipo = "bool";
       }
 
@@ -95,11 +160,11 @@ public class Semantico implements Constants {
    public void acao108() {
       codigoObjeto.append("call string [mscorlib]System.Console::ReadLine()\n");
 
-      if (identificador.startsWith("i_")) {
+      if (identificador.startsWith("cd_i")) {
          codigoObjeto.append("call int64 [mscorlib]System.Int64::Parse(string)\n");
-      } else if (identificador.startsWith("f_")) {
+      } else if (identificador.startsWith("cd_f")) {
          codigoObjeto.append("call float64 [mscorlib]System.Double::Parse(string)\n");
-      } else if (identificador.startsWith("b_")) {
+      } else if (identificador.startsWith("cd_b")) {
          codigoObjeto.append("call bool [mscorlib]System.Boolean::Parse(string)\n");
       }
 
@@ -113,6 +178,85 @@ public class Semantico implements Constants {
       }
       codigoObjeto.append("call void [mscorlib]System.Console::Write(" + tipo + ")\n");
     }
+
+   private void acao110(Token token) {
+      pilhaTipos.pop();
+
+      String rotuloAlternativo = novoRotulo();
+      String rotuloFim = novoRotulo();
+
+      SelecaoContexto contexto = new SelecaoContexto(rotuloAlternativo, rotuloFim);
+
+      pilhaSelecoes.push(contexto);
+
+      if ("isTrueDo".equals(token.getLexeme())) {
+         codigoObjeto.append("brfalse ")
+            .append(rotuloAlternativo).append("\n");
+      } else {
+         codigoObjeto.append("brtrue ")
+            .append(rotuloAlternativo).append("\n");
+      }
+}
+
+   private void acao111() {
+      SelecaoContexto contexto = pilhaSelecoes.pop();
+
+      if (!contexto.possuiAlternativa) {
+         codigoObjeto.append(contexto.rotuloAlternativo)
+         .append(":\n");
+      }
+
+      codigoObjeto.append(contexto.rotuloFim)
+      .append(":\n");
+   }
+
+   private void acao112() {
+      SelecaoContexto contexto = pilhaSelecoes.peek();
+
+      codigoObjeto.append("br ")
+            .append(contexto.rotuloFim).append("\n");
+
+      codigoObjeto.append(contexto.rotuloAlternativo)
+            .append(":\n");
+
+      contexto.possuiAlternativa = true;
+   }
+
+   private void acao113() {
+      String rotuloInicio = novoRotulo();
+      String rotuloFim = novoRotulo();
+
+      RepeticaoContexto contexto =
+         new RepeticaoContexto(rotuloInicio, rotuloFim);
+
+      pilhaRepeticoes.push(contexto);
+
+      codigoObjeto.append(rotuloInicio).append(":\n");
+   }
+
+   private void acao114(Token token) {
+      String tipo = pilhaTipos.pop();
+
+      RepeticaoContexto contexto = pilhaRepeticoes.peek();
+
+      if ("isTrueDo".equals(token.getLexeme())) {
+         codigoObjeto.append("brfalse ")
+         .append(contexto.rotuloFim).append("\n");
+      } else {
+         codigoObjeto.append("brtrue ")
+            .append(contexto.rotuloFim).append("\n");
+      }
+   }
+
+   private void acao115() {
+      RepeticaoContexto contexto = pilhaRepeticoes.pop();
+
+      codigoObjeto.append("br ")
+      .append(contexto.rotuloInicio).append("\n");
+
+      codigoObjeto.append(contexto.rotuloFim)
+      .append(":\n");
+   }
 
    private void acao116(Token token) throws SemanticError {
       String tipo1 = pilhaTipos.pop();
@@ -167,7 +311,7 @@ public class Semantico implements Constants {
             codigoObjeto.append("clt\n");
             break;
 
-         case ">":
+         case ">":   
             codigoObjeto.append("cgt\n");
             break;
 
@@ -222,19 +366,19 @@ public class Semantico implements Constants {
    public void acao127(Token token) {
       String id = token.getLexeme();
 
-      if (id.startsWith("i_")) {
+      if (id.startsWith("cd_i")) {
          pilhaTipos.push("int64");
-      } else if (id.startsWith("f_")) {
+      } else if (id.startsWith("cd_f")) {
          pilhaTipos.push("float64");
-      } else if (id.startsWith("s_")) {
+      } else if (id.startsWith("cd_s")) {
          pilhaTipos.push("string");
-      } else if (id.startsWith("b_")) {
+      } else if (id.startsWith("cd_b")) {
          pilhaTipos.push("bool");
       }
 
       codigoObjeto.append("ldloc " + id + "\n");
 
-      if (id.startsWith("i_")) {
+      if (id.startsWith("cd_i")) {
          codigoObjeto.append("conv.r8\n");
       }
    }

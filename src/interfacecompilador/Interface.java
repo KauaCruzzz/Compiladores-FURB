@@ -279,7 +279,7 @@ public class Interface extends JFrame {
             int linhaErro = getLinha(codigoFonte, e.getPosition());
 
             String encontrado = getLexemaEncontrado(codigoFonte, e.getPosition());
-            String esperado = e.getMessage();
+            String esperado = "erro sintático";
 
             mensagens.setText("linha " + linhaErro + ": encontrado " + encontrado + " " + esperado + "\n");
         }
