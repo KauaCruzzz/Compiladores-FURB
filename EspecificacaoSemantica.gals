@@ -108,11 +108,11 @@ while = palavra: "while"
 
 <dec_var> ::= <ls_var> ;
 
-<ls_var> ::= <identificador> #103 <opcional_id> | î ;
+<ls_var> ::= <identificador> <opcional_id> | î ;
 
-<opcional_id> ::= "," <identificador> #103 <opcional_id> | î ; 
+<opcional_id> ::= "," <identificador> <opcional_id> | î ; 
 
-<identificador> ::= <tipo_id> <opcional_vetor> ;
+<identificador> ::= <tipo_id> #103 <opcional_vetor> ;
 
 <tipo_id> ::= cd_int | cd_float | cd_string | cd_bool ;
 

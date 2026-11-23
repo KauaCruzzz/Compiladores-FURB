@@ -269,6 +269,7 @@ public class Interface extends JFrame {
 
         try {
             sintatico.parse(lexico, semantico);
+            gerarCodigoObjeto(semantico.getCodigoObjeto());
             mensagens.setText("programa compilado com sucesso\n");
 
         } catch (LexicalError e) {
@@ -284,8 +285,28 @@ public class Interface extends JFrame {
             mensagens.setText("linha " + linhaErro + ": encontrado " + encontrado + " " + esperado + "\n");
         }
         catch (SemanticError e) {
+            int linhaErro = getLinha(codigoFonte, e.getPosition());
+            mensagens.setText("linha " + linhaErro + ": " + e.getMessage() + "\n");
 
+        } catch (IOException e) {
+            mensagens.setText("erro ao gravar o código objeto: " + e.getMessage() + "\n");
         }
+    }
+
+    /**
+     * Grava o código objeto em um arquivo .il
+     */
+    private void gerarCodigoObjeto(String codigo) throws IOException {
+        if (arquivo == null) {
+            return;
+        }
+        String nome = arquivo.getName();
+        int ponto = nome.lastIndexOf('.');
+        if (ponto > 0) {
+            nome = nome.substring(0, ponto);
+        }
+        File destino = new File(arquivo.getAbsoluteFile().getParentFile(), nome + ".il");
+        Files.write(destino.toPath(), codigo.getBytes(StandardCharsets.UTF_8));
     }
 
     /**
